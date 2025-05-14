@@ -21,7 +21,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     private let signalingServerUrl = "http://192.168.3.72:3000"
 
     override func broadcastStarted(withSetupInfo setupInfo: [String : NSObject]?) {
-        NSLog("✅ 방송 시작")
+        NSLog("✅ 共有始め")
 
         // SSL / Factory / Source / Capturer 순서 보장
         RTCInitializeSSL()
@@ -31,6 +31,7 @@ class SampleHandler: RPBroadcastSampleHandler {
 
         videoSource = peerConnectionFactory.videoSource()
         capturer   = RTCVideoCapturer(delegate: videoSource)
+        videoSource.adaptOutputFormat(toWidth: 480, height: 852, fps: Int32(maxFPS)) // 최초 1회만 설정
 
         // Socket.IO
         manager = SocketManager(
@@ -45,19 +46,22 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     private func setupSocketHandlers() {
         // connect
-        socket.on(clientEvent: .connect) { [unowned self] _, _ in
+        socket.on(clientEvent: .connect) { [weak self] _, _ in
             NSLog("📡 Socket.IO connected")
+            guard let self = self else { return }
             self.socket.emit("join_room", self.roomName)
             self.createPeerConnection()
         }
 
         // welcome → offer 보내기
-        socket.on("welcome") { [unowned self] _, _ in
+        socket.on("welcome") { [weak self] _, _ in
+            guard let self = self else { return }
             self.sendOffer()
         }
 
         // offer 받기 → answer
-        socket.on("offer") { [unowned self] data, _ in
+        socket.on("offer") { [weak self] data, _ in
+            guard let self = self else { return }
             guard let dict = data[0] as? [String:Any],
                   let sdp  = dict["sdp"] as? String else {
                 NSLog("❌ offer 파싱 실패")
@@ -65,7 +69,7 @@ class SampleHandler: RPBroadcastSampleHandler {
             }
             NSLog("📨 offer 수신")
             let desc = RTCSessionDescription(type: .offer, sdp: sdp)
-            peerConnection.setRemoteDescription(desc) { error in
+            self.peerConnection.setRemoteDescription(desc) { error in
                 if let e = error {
                     NSLog("❌ setRemoteDesc 실패: \(e)")
                     return
@@ -75,7 +79,8 @@ class SampleHandler: RPBroadcastSampleHandler {
         }
 
         // answer 받기
-        socket.on("answer") { [unowned self] data, _ in
+        socket.on("answer") { [weak self] data, _ in
+            guard let self = self else { return }
             guard let dict = data[0] as? [String:Any],
                   let sdp  = dict["sdp"] as? String else {
                 NSLog("❌ answer 파싱 실패")
@@ -83,17 +88,18 @@ class SampleHandler: RPBroadcastSampleHandler {
             }
             NSLog("📨 answer 수신")
             let desc = RTCSessionDescription(type: .answer, sdp: sdp)
-            peerConnection.setRemoteDescription(desc, completionHandler: nil)
+            self.peerConnection.setRemoteDescription(desc, completionHandler: nil)
         }
 
         // ice candidate
-        socket.on("ice") { [unowned self] data, _ in
+        socket.on("ice") { [weak self] data, _ in
+            guard let self = self else { return }
             guard let dict = data[0] as? [String:Any],
                   let cand = dict["candidate"] as? String,
                   let mid  = dict["sdpMid"] as? String,
                   let idx  = dict["sdpMLineIndex"] as? Int32 else { return }
             let candidate = RTCIceCandidate(sdp: cand, sdpMLineIndex: idx, sdpMid: mid)
-            peerConnection.add(candidate)
+            self.peerConnection.add(candidate)
         }
     }
 
@@ -119,9 +125,10 @@ class SampleHandler: RPBroadcastSampleHandler {
             mandatoryConstraints: ["OfferToReceiveVideo": "false", "OfferToReceiveAudio": "false"],
             optionalConstraints: nil
         )
-        peerConnection.offer(for: cons) { [unowned self] offer, error in
+        peerConnection.offer(for: cons) { [weak self] offer, error in
+            guard let self = self else { return }
             guard let o = offer else { return }
-            peerConnection.setLocalDescription(o) { _ in
+            self.peerConnection.setLocalDescription(o) { _ in
                 self.socket.emit("offer", ["sdp": o.sdp, "type": "offer"])
                 NSLog("✅ offer 전송")
             }
@@ -130,9 +137,11 @@ class SampleHandler: RPBroadcastSampleHandler {
 
     private func sendAnswer() {
         let cons = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
-        peerConnection.answer(for: cons) { [unowned self] answer, error in
+        peerConnection.answer(for: cons) { [weak self] answer, error in
+            guard let self = self else { return }
+            
             guard let a = answer else { return }
-            peerConnection.setLocalDescription(a) { _ in
+            self.peerConnection.setLocalDescription(a) { _ in
                 self.socket.emit("answer", ["sdp": a.sdp, "type": "answer"])
                 NSLog("✅ answer 전송")
             }
@@ -160,13 +169,6 @@ class SampleHandler: RPBroadcastSampleHandler {
                                        rotation: ._0,
                                        timeStampNs: Int64(tsNs))
 
-            // 단일 capturer 인스턴스로 전송
-//            videoSource.adaptOutputFormat(toWidth: 720,
-//                                              height: 1280,
-//                                              fps: 15)
-            videoSource.adaptOutputFormat(toWidth: 480,
-                                              height: 852,
-                                              fps: 5)
             videoSource.capturer(capturer, didCapture: frame)
         }
 //        NSLog("📦 Throttled frame 전송 at \(Int(maxFPS))fps")
