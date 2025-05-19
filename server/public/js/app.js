@@ -5,6 +5,7 @@ const muteBtn = document.getElementById("mute");
 const cameraBtn = document.getElementById("camera");
 const camerasSelect = document.getElementById("cameras");
 const call = document.getElementById("call");
+const sendBtn = document.getElementById("sendBtn");
 
 call.hidden = true;
 
@@ -165,3 +166,33 @@ function handleAddStream(data) {
   const peerFace = document.getElementById("peerFace");
   peerFace.srcObject = data.stream;
 }
+
+sendBtn.addEventListener("click", async (event) => {
+  event.preventDefault();
+
+  const payload = {
+    title: "画面共有",
+    body: "画面共有の要請があります",
+    payload: "CC212C",
+  };
+
+  try {
+    // 2) fetch로 POST 요청 보내기
+    const response = await fetch("http://192.168.3.72:3000/api/send-push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    // 3) 응답 처리
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const result = await response.json();
+    console.log("서버 응답:", result);
+  } catch (err) {
+    console.error("전송 중 에러:", err);
+  }
+});
