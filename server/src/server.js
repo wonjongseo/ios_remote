@@ -6,11 +6,7 @@ import express from "express";
 import path from "path";
 
 const __dirname = path.resolve();
-let deviceTokens = [
-  "7556d973b43db183e43e5e9fa028994c5970bfaf1b3c2182b180df1cda1f2ce9",
-  "806eeabd77a7c368228e6f51a4d7081c93d1c2a820e96db615e683039a4913d27e4686b3b5cc497bdb49269d615d37d11629c820a1f195def3c4196a4f67c35964eead7967c5b0116e888521817a6071",
-  "dad53e6f8f5da638b56e3bb235e329998aa9dbc99c322af70edbb9aa3865f301",
-];
+let deviceTokens = ["7556d973b43db183e43e5e9fa028994c5970bfaf1b3c2182b180df1cda1f2ce9"];
 
 const app = express();
 

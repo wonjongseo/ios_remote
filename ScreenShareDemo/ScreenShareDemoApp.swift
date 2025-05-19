@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UserNotifications
+import FirebaseCore
 
 @main
 struct ScreenShareDemoApp: App {
@@ -15,6 +16,7 @@ struct ScreenShareDemoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(AuthViewModel())
         }
     }
 }
@@ -27,9 +29,14 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+            
+           
         // UNUserNotificationCenter 설정
         let center = UNUserNotificationCenter.current()
         center.delegate = self
+        
+        // Firebase匿名認証
+        FirebaseApp.configure()
 
         // 1) 알림 권한 요청
         center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
@@ -46,6 +53,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 print("🔴 사용자가 알림 권한을 거부했습니다.")
             }
         }
+
         return true
     }
     

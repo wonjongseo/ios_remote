@@ -4,7 +4,8 @@ platform :ios, '14.0'
 target 'ScreenShareDemo' do
   # Comment the next line if you don't want to use dynamic frameworks
   use_frameworks!
-  pod 'Firebase/Auth'
+  pod 'FirebaseCore'
+  pod 'FirebaseAuth'
 
   # Pods for ScreenShareDemo
 
